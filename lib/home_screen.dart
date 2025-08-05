@@ -8,11 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
-// ❗ DİKKAT: BURAYI KENDİ BİLGİSAYARINIZIN IP ADRESİ İLE DEĞİŞTİRİN
-// Bilgisayarınızın IP adresini öğrenmek için terminal/cmd'ye 'ipconfig' (Windows) veya 'ifconfig' (macOS/Linux) yazın.
-// Örnek: "http://192.168.1.10:5000/predict"
-const String apiUrl =
-    "http://127.0.0.1:5000/predict"; // ⭐ Örnek IP ile güncellendi
+const String apiUrl = "http://127.0.0.1:5000/predict";
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -188,6 +184,14 @@ class _HomeScreenState extends State<HomeScreen> {
               : () => _processImage(ImageSource.camera),
           icon: const Icon(Icons.camera_alt_outlined),
           label: const Text('Fotoğraf Çek'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFEEA2AF),
+            foregroundColor: Colors.white,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
@@ -268,6 +272,8 @@ class _PredictionResultCard extends StatelessWidget {
     final calories = nutritions['calories'] as int? ?? 0;
     final protein = nutritions['protein_g'] as num? ?? 0.0;
     final fat = nutritions['fat_g'] as num? ?? 0.0;
+    final carbohydrates =
+        nutritions['carbohydrate_g'] as num? ?? 0.0; // <-- Yeni eklenen satır
 
     // 3. Kaynağa göre ikon ve metin belirle
     final bool isGemini = source.toLowerCase().contains('gemini');
@@ -317,6 +323,12 @@ class _PredictionResultCard extends StatelessWidget {
                 _NutrientInfo(
                   value: fat.toStringAsFixed(1),
                   label: 'Yağ',
+                  unit: 'g',
+                ),
+                _NutrientInfo(
+                  // <-- Yeni eklenen widget
+                  value: carbohydrates.toStringAsFixed(1),
+                  label: 'Karbonhidrat',
                   unit: 'g',
                 ),
               ],

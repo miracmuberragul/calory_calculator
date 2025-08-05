@@ -1,7 +1,5 @@
-// lib/main.dart
-
-import 'package:calori_app/home_screen.dart';
-import 'package:flutter/material.dart'; // Yeni dosyamızı import ediyoruz
+import 'package:flutter/material.dart';
+import 'package:calori_app/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,41 +11,33 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // Uygulama başlığı
-      title: 'Yemek Tanıma',
-
-      // Hata ayıklama banner'ını kaldır
+      title: 'Kalori Dedektifi',
       debugShowCheckedModeBanner: false,
-
-      // Uygulama teması
       theme: ThemeData(
-        // Ana renk paleti
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
-
-        // Tema öğelerinin daha modern görünmesini sağlar
-        useMaterial3: true,
-
-        // AppBar teması
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF033F40), // AppBar arka plan rengi
-          foregroundColor: Colors.white, // Başlık ve ikon renkleri
-          elevation: 4,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF35738C),
+          brightness: Brightness.light,
         ),
-
-        // Buton teması
+        useMaterial3: true,
+        fontFamily: 'System', // Sistem fontunu kullan
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFFEEA2AF),
+            backgroundColor: const Color(0xFF35738C),
             foregroundColor: Colors.white,
+            elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
         ),
+        // AppBar teması eklendi
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF033F40), // AppBar arka plan rengi
+          foregroundColor: Colors.white, // Başlık ve ikon renkleri
+          elevation: 4,
+        ),
       ),
-
-      // Uygulamanın başlangıç ekranı
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }
