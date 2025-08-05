@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:calori_app/services/daily_tracking_service.dart';
 
 const String apiUrl = "http://127.0.0.1:5000/predict";
 
@@ -99,12 +101,58 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Yemek verisini günlük takip servisine ekler
+  void _addToTracking() {
+    if (_predictionResult == null) return;
+
+    final trackingService = Provider.of<DailyTrackingService>(
+      context,
+      listen: false,
+    );
+
+    final nutritions =
+        _predictionResult!['nutritions'] as Map<String, dynamic>? ?? {};
+
+    final foodEntry = FoodEntry(
+      foodName: _predictionResult!['food_name'] as String? ?? 'Bilinmiyor',
+      calories: nutritions['calories'] as int? ?? 0,
+      protein: (nutritions['protein_g'] as num? ?? 0.0).toDouble(),
+      fat: (nutritions['fat_g'] as num? ?? 0.0).toDouble(),
+      carbohydrates: (nutritions['carbohydrate_g'] as num? ?? 0.0).toDouble(),
+      timestamp: DateTime.now(),
+      imageUrl: _imageFile?.path ?? '',
+    );
+
+    trackingService.addFoodEntry(foodEntry);
+
+    // Başarı mesajı göster
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${foodEntry.foodName} günlük takibinize eklendi!'),
+        backgroundColor: const Color(0xFF4CAF50),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
   // --- Arayüz Bileşenleri (UI Widgets) ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Yemek Kalori Tespiti')),
+      appBar: AppBar(
+        title: const Text('Yemek Kalori Tespiti'),
+        backgroundColor: const Color(0xFF033F40),
+        foregroundColor: Colors.white,
+        actions: [
+          // Ana sayfaya dön butonu
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.home),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -191,6 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
           ),
         ),
         const SizedBox(height: 12),
@@ -200,6 +249,12 @@ class _HomeScreenState extends State<HomeScreen> {
               : () => _processImage(ImageSource.gallery),
           icon: const Icon(Icons.photo_library_outlined),
           label: const Text('Galeriden Seç'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         ),
       ],
     );
@@ -242,8 +297,29 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     if (_predictionResult != null) {
-      // ⭐ GÜNCELLENDİ: Yeni sonuç kartı widget'ı çağrılıyor.
-      return _PredictionResultCard(result: _predictionResult!);
+      return Column(
+        children: [
+          _PredictionResultCard(result: _predictionResult!),
+          const SizedBox(height: 16),
+          // Takibe ekle butonu
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _addToTracking,
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Günlük Takibe Ekle'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
     }
     return const SizedBox(height: 50);
   }

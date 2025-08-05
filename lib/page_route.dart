@@ -1,5 +1,7 @@
+// lib/screens/page_route.dart
+
+import 'package:calori_app/main_dashboard_screen.dart';
 import 'package:calori_app/abaout_screen.dart';
-import 'package:calori_app/home_screen.dart';
 import 'package:flutter/material.dart';
 
 class PageRoute extends StatefulWidget {
@@ -15,11 +17,13 @@ class _PageRouteState extends State<PageRoute> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Yemek Kalori Tespiti ',
+          'Kalori Dedektifi',
           style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.5),
         ),
         centerTitle: true,
         elevation: 2,
+        backgroundColor: const Color(0xFF35738C),
+        foregroundColor: Colors.white,
       ),
       body: SafeArea(
         child: Center(
@@ -32,9 +36,39 @@ class _PageRouteState extends State<PageRoute> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Logo ve başlık
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF35738C),
+                        const Color(0xFFEEA2AF),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF35738C).withOpacity(0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.restaurant_menu,
+                    size: 50,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Ana başlık
                 const Text(
-                  ' Yemek Kalori Tespiti ',
+                  'Kalori Dedektifi',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF35738C),
@@ -58,8 +92,8 @@ class _PageRouteState extends State<PageRoute> {
                     ),
                   ),
                   child: const Text(
-                    'Bu uygulama, yemeklerin kalori değerlerini tahmin etmek için makine öğrenimi modelleri kullanır. '
-                    'Kameranızı kullanarak bir yemek fotoğrafı çekebilir ve modelin tahmin ettiği kalori değerini görebilirsiniz.',
+                    'Yemeklerinizin kalori değerlerini AI ile tespit edin ve günlük beslenmenizi takip edin. '
+                    'Fotoğraf çekip anında sonuç alın!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFF35738C),
@@ -73,19 +107,21 @@ class _PageRouteState extends State<PageRoute> {
 
                 const SizedBox(height: 40),
 
-                // Ana buton - daha büyük ve merkezi
+                // Ana buton - Dashboard'a git
                 SizedBox(
                   width: double.infinity,
                   height: 56,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const HomeScreen(),
+                          builder: (context) => const MainDashboardScreen(),
                         ),
                       );
                     },
+                    icon: const Icon(Icons.dashboard_outlined),
+                    label: const Text('Ana Sayfa'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFEEA2AF),
                       foregroundColor: Colors.white,
@@ -95,32 +131,26 @@ class _PageRouteState extends State<PageRoute> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
-                      'Kalori Tahmini Yap',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                // İkincil buton - aynı boyut ve stil
+                // İkincil buton - Hakkında
                 SizedBox(
                   width: double.infinity,
                   height: 56,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AbaoutScreen(),
+                          builder: (context) => const AboutScreen(),
                         ),
                       );
                     },
+                    icon: const Icon(Icons.info_outline),
+                    label: const Text('Uygulama Hakkında'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: const Color(0xFFEEA2AF),
@@ -132,14 +162,6 @@ class _PageRouteState extends State<PageRoute> {
                       shadowColor: const Color(0xFF35738C).withOpacity(0.1),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'Uygulama Hakkında',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
