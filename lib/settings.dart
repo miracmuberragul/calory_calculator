@@ -1,6 +1,7 @@
 // lib/screens/settings_screen.dart
 
 import 'package:calori_app/abaout_screen.dart';
+import 'package:calori_app/profil_setup_screen.dart';
 import 'package:calori_app/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +19,6 @@ class SettingsScreen extends StatelessWidget {
     ).currentUser;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil ve Ayarlar'),
-        automaticallyImplyLeading: false, // Geri butonunu kaldırır
-      ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
@@ -64,10 +61,10 @@ class SettingsScreen extends StatelessWidget {
               title: const Text('Profil Bilgilerimi Düzenle'),
               subtitle: const Text('Boy, kilo ve hedeflerinizi güncelleyin'),
               onTap: () {
-                // TODO: Profil düzenleme ekranına yönlendirme eklenecek
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Bu özellik yakında eklenecektir.'),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileSetupScreen(),
                   ),
                 );
               },

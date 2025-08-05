@@ -1,3 +1,4 @@
+import 'package:calori_app/auth_wrapper.dart';
 import 'package:flutter/material.dart' hide PageRoute;
 import 'package:calori_app/page_route.dart';
 
@@ -89,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const RoutePage(),
+              const AuthWrapper(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },

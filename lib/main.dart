@@ -4,6 +4,7 @@ import 'package:calori_app/auth_wrapper.dart'; // Bu dosyayı birazdan oluştura
 import 'package:calori_app/firebase_options.dart';
 import 'package:calori_app/services/auth_service.dart'; // Oluşturduğumuz servis
 import 'package:calori_app/services/firebase_servise.dart';
+import 'package:calori_app/splash_screen.dart';
 // Oluşturduğumuz servis
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -62,7 +63,7 @@ class MyApp extends StatelessWidget {
         // SplashScreen'den sonra bu ekrana yönlendireceğiz.
         // Şimdilik test için doğrudan AuthWrapper'ı koyalım.
         // home: const SplashScreen(), // Orijinal hali
-        home: const AuthWrapper(), // Yeni hali
+        home: const SplashScreen(), // Yeni hali
       ),
     );
   }

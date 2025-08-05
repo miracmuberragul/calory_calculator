@@ -175,24 +175,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Yemek Kalori Tespiti'),
-        backgroundColor: const Color(0xFF033F40),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Ana menüye veya başka bir ekrana yönlendirme
-              // Örnek: Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            icon: const Icon(Icons.home),
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
