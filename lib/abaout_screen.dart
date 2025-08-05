@@ -10,7 +10,7 @@ class AboutScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Uygulama Hakkında'),
-        backgroundColor: const Color(0xFF35738C),
+        backgroundColor: const Color(0xFF033F40),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(

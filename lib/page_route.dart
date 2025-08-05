@@ -22,7 +22,7 @@ class _PageRouteState extends State<PageRoute> {
         ),
         centerTitle: true,
         elevation: 2,
-        backgroundColor: const Color(0xFF35738C),
+        backgroundColor: const Color(0xFF033F40),
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
