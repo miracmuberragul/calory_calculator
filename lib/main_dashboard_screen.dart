@@ -20,30 +20,6 @@ class MainDashboardScreen extends StatelessWidget {
             return CustomScrollView(
               slivers: [
                 // App Bar
-                SliverAppBar(
-                  expandedHeight: 120,
-                  floating: false,
-                  pinned: true,
-                  backgroundColor: const Color(0xFF033F40),
-                  flexibleSpace: FlexibleSpaceBar(
-                    title: const Text(
-                      'Günlük Takip',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    background: Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF35738C), Color(0xFF4A8FA3)],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
 
                 // Ana İçerik
                 SliverPadding(

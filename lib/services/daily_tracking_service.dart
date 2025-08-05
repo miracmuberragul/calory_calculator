@@ -1,9 +1,11 @@
 // lib/services/daily_tracking_service.dart
 
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 class FoodEntry {
+  final String? id;
   final String foodName;
   final int calories;
   final double protein;
@@ -13,6 +15,7 @@ class FoodEntry {
   final String imageUrl;
 
   FoodEntry({
+    this.id,
     required this.foodName,
     required this.calories,
     required this.protein,
@@ -32,15 +35,18 @@ class FoodEntry {
     'imageUrl': imageUrl,
   };
 
-  factory FoodEntry.fromJson(Map<String, dynamic> json) => FoodEntry(
-    foodName: json['foodName'] ?? '',
-    calories: json['calories'] ?? 0,
-    protein: (json['protein'] ?? 0.0).toDouble(),
-    fat: (json['fat'] ?? 0.0).toDouble(),
-    carbohydrates: (json['carbohydrates'] ?? 0.0).toDouble(),
-    timestamp: DateTime.parse(json['timestamp']),
-    imageUrl: json['imageUrl'] ?? '',
-  );
+  factory FoodEntry.fromMap(Map<String, dynamic> map, String documentId) {
+    return FoodEntry(
+      id: documentId,
+      foodName: map['foodName'] ?? 'Bilinmiyor',
+      calories: map['calories'] ?? 0,
+      protein: (map['protein'] as num? ?? 0.0).toDouble(),
+      fat: (map['fat'] as num? ?? 0.0).toDouble(),
+      carbohydrates: (map['carbohydrates'] as num? ?? 0.0).toDouble(),
+      timestamp: (map['timestamp'] as Timestamp).toDate(),
+      imageUrl: map['imageUrl'] ?? '',
+    );
+  }
 }
 
 class DailyNutrition {

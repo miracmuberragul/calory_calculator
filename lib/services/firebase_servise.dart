@@ -1,101 +1,326 @@
 // lib/services/firestore_service.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:calori_app/models/user_model.dart'; // Yeni modelimizi import ediyoruz
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:calori_app/services/daily_tracking_service.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // users koleksiyonuna referans
-  late final CollectionReference<UserModel> _usersRef;
+  // Kullanıcı ID'sini al
+  static String? get _userId => _auth.currentUser?.uid;
 
-  FirestoreService() {
-    // Firestore'a veri yazıp okurken UserModel'i otomatik dönüştürmek için
-    // withConverter kullanıyoruz. Bu, kodu çok daha temiz hale getirir.
-    _usersRef = _db
-        .collection('users')
-        .withConverter<UserModel>(
-          fromFirestore: (snapshot, _) => UserModel.fromFirestore(snapshot),
-          toFirestore: (user, _) => user.toFirestore(),
+  // Yemek verisini Firestore'a kaydet
+  static Future<bool> saveFoodEntry(FoodEntry foodEntry) async {
+    try {
+      if (_userId == null) {
+        print('Kullanıcı oturum açmamış');
+        return false;
+      }
+
+      await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('food_entries')
+          .add({
+            'foodName': foodEntry.foodName,
+            'calories': foodEntry.calories,
+            'protein': foodEntry.protein,
+            'fat': foodEntry.fat,
+            'carbohydrates': foodEntry.carbohydrates,
+            'timestamp': foodEntry.timestamp,
+            'imageUrl': foodEntry.imageUrl,
+            'date': _formatDate(foodEntry.timestamp), // Günlük filtreleme için
+          });
+
+      print('Yemek verisi Firestore\'a kaydedildi: ${foodEntry.foodName}');
+      return true;
+    } catch (e) {
+      print('Firestore kaydetme hatası: $e');
+      return false;
+    }
+  }
+
+  // Belirli bir günün yemek verilerini getir
+  static Future<List<FoodEntry>> getTodayFoodEntries() async {
+    try {
+      if (_userId == null) {
+        print('Kullanıcı oturum açmamış');
+        return [];
+      }
+
+      final today = _formatDate(DateTime.now());
+
+      final querySnapshot = await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('food_entries')
+          .where('date', isEqualTo: today)
+          .orderBy('timestamp', descending: false)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return FoodEntry(
+          foodName: data['foodName'] ?? 'Bilinmiyor',
+          calories: data['calories'] ?? 0,
+          protein: (data['protein'] ?? 0.0).toDouble(),
+          fat: (data['fat'] ?? 0.0).toDouble(),
+          carbohydrates: (data['carbohydrates'] ?? 0.0).toDouble(),
+          timestamp: (data['timestamp'] as Timestamp).toDate(),
+          imageUrl: data['imageUrl'] ?? '',
         );
-  }
-
-  // Yeni kullanıcı oluşturma veya mevcut kullanıcı verilerini güncelleme
-  Future<void> setUserData(UserModel user) async {
-    try {
-      // .set() metodu, eğer doküman varsa üzerine yazar, yoksa oluşturur.
-      // SetOptions(merge: true) sayesinde sadece gönderdiğimiz alanları günceller,
-      // diğerlerini silmez.
-      await _usersRef.doc(user.uid).set(user, SetOptions(merge: true));
+      }).toList();
     } catch (e) {
-      print("Firestore kullanıcı verisi kaydetme hatası: $e");
-      rethrow; // Hatanın UI katmanında da yakalanabilmesi için yeniden fırlat
+      print('Firestore veri çekme hatası: $e');
+      return [];
     }
   }
 
-  // Belirli bir kullanıcının verisini UserModel olarak çekme
-  Future<UserModel?> getUser(String uid) async {
-    try {
-      final doc = await _usersRef.doc(uid).get();
-      return doc.data(); // withConverter sayesinde bu direkt UserModel döner
-    } catch (e) {
-      print("Firestore kullanıcı verisi okuma hatası: $e");
-      return null;
-    }
-  }
-
-  Future<void> createUserDocument(String uid, String email) async {
-    try {
-      // Yeni kullanıcı için sadece email ve uid içeren bir doküman oluştur.
-      // merge: false olmalı ki yanlışlıkla üzerine yazmasın.
-      await _db.collection('users').doc(uid).set({
-        'uid': uid,
-        'email': email,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      print("Kullanıcı dokümanı oluşturma hatası: $e");
-      rethrow;
-    }
-  }
-
-  // Kullanıcının profil bilgilerini (boy, kilo vb.) güncelleme
-  Future<void> updateUserProfileData({
-    required String uid,
-    String? email, // email'i de eklemek iyi bir pratik
-    required double height,
-    required double weight,
-    required double targetWeight,
-  }) async {
-    try {
-      // .set() metodu, doküman yoksa oluşturur, varsa SetOptions(merge: true)
-      // sayesinde sadece belirtilen alanları günceller.
-      await _db.collection('users').doc(uid).set({
-        'height_cm': height,
-        'current_weight_kg': weight,
-        'target_weight_kg': targetWeight,
-        if (email != null)
-          'email': email, // Eğer email gönderilmişse onu da ekle
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print("Profil güncelleme/kaydetme hatası: $e");
-      rethrow;
-    }
-  }
-
-  // Yemeği belirli bir kullanıcının altına kaydetme (mevcut fonksiyon)
-  Future<void> addFoodEntryForUser(
-    String uid,
-    Map<String, dynamic> foodData,
+  // Belirli bir tarih aralığındaki verileri getir
+  static Future<List<FoodEntry>> getFoodEntriesByDateRange(
+    DateTime startDate,
+    DateTime endDate,
   ) async {
     try {
-      await _db
+      if (_userId == null) {
+        print('Kullanıcı oturum açmamış');
+        return [];
+      }
+
+      final querySnapshot = await _firestore
           .collection('users')
-          .doc(uid)
+          .doc(_userId)
           .collection('food_entries')
-          .add(foodData);
+          .where('timestamp', isGreaterThanOrEqualTo: startDate)
+          .where('timestamp', isLessThanOrEqualTo: endDate)
+          .orderBy('timestamp', descending: false)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return FoodEntry(
+          foodName: data['foodName'] ?? 'Bilinmiyor',
+          calories: data['calories'] ?? 0,
+          protein: (data['protein'] ?? 0.0).toDouble(),
+          fat: (data['fat'] ?? 0.0).toDouble(),
+          carbohydrates: (data['carbohydrates'] ?? 0.0).toDouble(),
+          timestamp: (data['timestamp'] as Timestamp).toDate(),
+          imageUrl: data['imageUrl'] ?? '',
+        );
+      }).toList();
     } catch (e) {
-      print("Yemek girdisi ekleme hatası: $e");
+      print('Firestore tarih aralığı veri çekme hatası: $e');
+      return [];
+    }
+  }
+
+  // Yemek verisini sil
+  static Future<bool> deleteFoodEntry(String documentId) async {
+    try {
+      if (_userId == null) {
+        print('Kullanıcı oturum açmamış');
+        return false;
+      }
+
+      await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('food_entries')
+          .doc(documentId)
+          .delete();
+
+      print('Yemek verisi silindi: $documentId');
+      return true;
+    } catch (e) {
+      print('Firestore silme hatası: $e');
+      return false;
+    }
+  }
+
+  // Kullanıcının tüm yemek verilerini getir (sayfalama ile)
+  static Future<List<FoodEntry>> getAllFoodEntries({
+    int limit = 50,
+    DocumentSnapshot? lastDocument,
+  }) async {
+    try {
+      if (_userId == null) {
+        print('Kullanıcı oturum açmamış');
+        return [];
+      }
+
+      Query query = _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('food_entries')
+          .orderBy('timestamp', descending: true)
+          .limit(limit);
+
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      final querySnapshot = await query.get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return FoodEntry(
+          foodName: data['foodName'] ?? 'Bilinmiyor',
+          calories: data['calories'] ?? 0,
+          protein: (data['protein'] ?? 0.0).toDouble(),
+          fat: (data['fat'] ?? 0.0).toDouble(),
+          carbohydrates: (data['carbohydrates'] ?? 0.0).toDouble(),
+          timestamp: (data['timestamp'] as Timestamp).toDate(),
+          imageUrl: data['imageUrl'] ?? '',
+        );
+      }).toList();
+    } catch (e) {
+      print('Firestore tüm veriler çekme hatası: $e');
+      return [];
+    }
+  }
+
+  // Günlük istatistikleri getir
+  static Future<Map<String, dynamic>> getDailyStats(DateTime date) async {
+    try {
+      if (_userId == null) {
+        return {
+          'totalCalories': 0,
+          'totalProtein': 0.0,
+          'totalFat': 0.0,
+          'totalCarbohydrates': 0.0,
+          'mealCount': 0,
+        };
+      }
+
+      final dateString = _formatDate(date);
+
+      final querySnapshot = await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('food_entries')
+          .where('date', isEqualTo: dateString)
+          .get();
+
+      int totalCalories = 0;
+      double totalProtein = 0.0;
+      double totalFat = 0.0;
+      double totalCarbohydrates = 0.0;
+
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        totalCalories += (data['calories'] ?? 0) as int;
+        totalProtein += (data['protein'] ?? 0.0).toDouble();
+        totalFat += (data['fat'] ?? 0.0).toDouble();
+        totalCarbohydrates += (data['carbohydrates'] ?? 0.0).toDouble();
+      }
+
+      return {
+        'totalCalories': totalCalories,
+        'totalProtein': totalProtein,
+        'totalFat': totalFat,
+        'totalCarbohydrates': totalCarbohydrates,
+        'mealCount': querySnapshot.docs.length,
+      };
+    } catch (e) {
+      print('Günlük istatistik hesaplama hatası: $e');
+      return {
+        'totalCalories': 0,
+        'totalProtein': 0.0,
+        'totalFat': 0.0,
+        'totalCarbohydrates': 0.0,
+        'mealCount': 0,
+      };
+    }
+  }
+
+  // Real-time dinleyici - bugünkü veriler için
+  static Stream<List<FoodEntry>> getTodayFoodEntriesStream() {
+    if (_userId == null) {
+      return Stream.value([]);
+    }
+
+    final today = _formatDate(DateTime.now());
+
+    return _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('food_entries')
+        .where('date', isEqualTo: today)
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            return FoodEntry(
+              foodName: data['foodName'] ?? 'Bilinmiyor',
+              calories: data['calories'] ?? 0,
+              protein: (data['protein'] ?? 0.0).toDouble(),
+              fat: (data['fat'] ?? 0.0).toDouble(),
+              carbohydrates: (data['carbohydrates'] ?? 0.0).toDouble(),
+              timestamp: (data['timestamp'] as Timestamp).toDate(),
+              imageUrl: data['imageUrl'] ?? '',
+            );
+          }).toList();
+        });
+  }
+
+  // Yardımcı fonksiyon - tarihi string formatına çevir
+  static String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  // Kullanıcı profili oluştur/güncelle
+  static Future<bool> createOrUpdateUserProfile({
+    required String name,
+    required String email,
+    int? dailyCalorieGoal,
+    double? dailyProteinGoal,
+    double? dailyFatGoal,
+    double? dailyCarbGoal,
+  }) async {
+    try {
+      if (_userId == null) {
+        print('Kullanıcı oturum açmamış');
+        return false;
+      }
+
+      await _firestore.collection('users').doc(_userId).set({
+        'name': name,
+        'email': email,
+        'dailyCalorieGoal': dailyCalorieGoal ?? 2000,
+        'dailyProteinGoal': dailyProteinGoal ?? 150.0,
+        'dailyFatGoal': dailyFatGoal ?? 65.0,
+        'dailyCarbGoal': dailyCarbGoal ?? 250.0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      print('Kullanıcı profili kaydedildi/güncellendi');
+      return true;
+    } catch (e) {
+      print('Kullanıcı profili kaydetme hatası: $e');
+      return false;
+    }
+  }
+
+  // Kullanıcı profilini getir
+  static Future<Map<String, dynamic>?> getUserProfile() async {
+    try {
+      if (_userId == null) {
+        print('Kullanıcı oturum açmamış');
+        return null;
+      }
+
+      final doc = await _firestore.collection('users').doc(_userId).get();
+
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
+    } catch (e) {
+      print('Kullanıcı profili getirme hatası: $e');
+      return null;
     }
   }
 }
