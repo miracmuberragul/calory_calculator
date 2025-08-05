@@ -41,7 +41,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDQXMOfaNY6PBWQQwQicc1cff0IJKL5g44',
+    apiKey: 'your api key',
     appId: '1:848014412192:web:bdbdb70a8c92065c0ebcc5',
     messagingSenderId: '848014412192',
     projectId: 'calorie-detective',
@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyC5JA05uKColIKOnlP7Ze-WRmfJH_qDv1g',
+    apiKey: 'your api key',
     appId: '1:848014412192:android:efe8f709fef389150ebcc5',
     messagingSenderId: '848014412192',
     projectId: 'calorie-detective',
@@ -59,7 +59,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDXyYZ9JSUE7nv60C6k-89sA-tfCK28HFA',
+    apiKey: 'your api key',
     appId: '1:848014412192:ios:4a0203a8b87ab9960ebcc5',
     messagingSenderId: '848014412192',
     projectId: 'calorie-detective',
@@ -68,7 +68,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDXyYZ9JSUE7nv60C6k-89sA-tfCK28HFA',
+    apiKey: 'your api key',
     appId: '1:848014412192:ios:4a0203a8b87ab9960ebcc5',
     messagingSenderId: '848014412192',
     projectId: 'calorie-detective',
@@ -77,7 +77,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDQXMOfaNY6PBWQQwQicc1cff0IJKL5g44',
+    apiKey: 'your api key',
     appId: '1:848014412192:web:bfe9f062e52d971f0ebcc5',
     messagingSenderId: '848014412192',
     projectId: 'calorie-detective',
