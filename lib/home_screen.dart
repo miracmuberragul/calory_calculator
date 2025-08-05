@@ -20,14 +20,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // --- Durum Değişkenleri (State Variables) ---
+  // --- Durum Değişkenleri ---
   final ImagePicker _picker = ImagePicker();
   File? _imageFile;
   Map<String, dynamic>? _predictionResult;
   bool _isLoading = false;
   String? _errorMessage;
 
-  // --- Mantıksal Fonksiyonlar (Logic Functions) ---
+  // --- Mantıksal Fonksiyonlar ---
 
   /// Galeriden veya kameradan bir resim seçer ve tahmin sürecini başlatır.
   Future<void> _processImage(ImageSource source) async {
@@ -35,7 +35,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _isLoading = true;
       _predictionResult = null;
       _errorMessage = null;
-      _imageFile = null;
     });
 
     try {
@@ -48,13 +47,12 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _imageFile = File(pickedFile.path));
         await _uploadAndPredict(File(pickedFile.path));
       } else {
-        // Kullanıcı resim seçmekten vazgeçerse yüklemeyi durdur
         if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = "Resim seçilemedi: $e";
+          _errorMessage = "Resim seçme hatası: $e";
           _isLoading = false;
         });
       }
@@ -68,7 +66,6 @@ class _HomeScreenState extends State<HomeScreen> {
       var request = http.MultipartRequest('POST', uri)
         ..files.add(
           await http.MultipartFile.fromPath(
-            // ⭐ Python tarafında beklenen anahtar 'image' olmalı
             'image',
             imageFile.path,
             contentType: MediaType('image', 'jpeg'),
@@ -79,29 +76,34 @@ class _HomeScreenState extends State<HomeScreen> {
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        setState(() {
-          // Gelen cevabı UTF-8 olarak decode ederek Türkçe karakter sorunlarını önle
-          _predictionResult = json.decode(utf8.decode(response.bodyBytes));
-          _errorMessage = null; // Başarılı olunca eski hatayı temizle
-        });
+        if (mounted) {
+          setState(() {
+            _predictionResult = json.decode(utf8.decode(response.bodyBytes));
+            _errorMessage = null;
+          });
+        }
       } else {
         final errorBody = json.decode(utf8.decode(response.bodyBytes));
-        setState(
-          () => _errorMessage =
-              "Sunucu Hatası (${response.statusCode}): ${errorBody['error'] ?? response.reasonPhrase}",
-        );
+        if (mounted) {
+          setState(
+            () => _errorMessage =
+                "Sunucu Hatası (${response.statusCode}): ${errorBody['error'] ?? response.reasonPhrase}",
+          );
+        }
       }
     } catch (e) {
-      setState(
-        () => _errorMessage =
-            "Bağlantı Hatası: Sunucu çalışıyor mu? IP adresi doğru mu?",
-      );
+      if (mounted) {
+        setState(
+          () => _errorMessage =
+              "Bağlantı Hatası: Sunucu çalışıyor mu? IP adresi doğru mu?\n($e)",
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// Yemek verisini günlük takip servisine ekler
+  /// ⭐ GÜNCELLENDİ: Hem tekli hem çoklu yemek sonuçlarını takibe ekler.
   void _addToTracking() {
     if (_predictionResult == null) return;
 
@@ -110,22 +112,54 @@ class _HomeScreenState extends State<HomeScreen> {
       listen: false,
     );
 
-    final nutritions =
-        _predictionResult!['nutritions'] as Map<String, dynamic>? ?? {};
+    String foodName;
+    int calories;
+    double protein;
+    double fat;
+    double carbohydrates;
+
+    // Gelen yanıtta 'items' anahtarı var mı diye kontrol et (çoklu yemek durumu)
+    if (_predictionResult!.containsKey('items') &&
+        _predictionResult!.containsKey('total_nutrition')) {
+      // --- ÇOKLU YEMEK MANTIĞI ---
+      final items = List<Map<String, dynamic>>.from(
+        _predictionResult!['items'],
+      );
+      foodName = items
+          .map((item) => item['food_name'] as String? ?? 'Öğe')
+          .join(', ');
+
+      final totalNutritions =
+          _predictionResult!['total_nutrition'] as Map<String, dynamic>? ?? {};
+      calories = totalNutritions['calories'] as int? ?? 0;
+      // Backend'in çoklu yanıttaki anahtarlarına dikkat: 'protein', 'fat' vs.
+      protein = (totalNutritions['protein'] as num? ?? 0.0).toDouble();
+      fat = (totalNutritions['fat'] as num? ?? 0.0).toDouble();
+      carbohydrates = (totalNutritions['carbohydrates'] as num? ?? 0.0)
+          .toDouble();
+    } else {
+      // --- TEKLİ YEMEK MANTIĞI (Eski mantık) ---
+      foodName = _predictionResult!['food_name'] as String? ?? 'Bilinmiyor';
+      final nutritions =
+          _predictionResult!['nutritions'] as Map<String, dynamic>? ?? {};
+      calories = nutritions['calories'] as int? ?? 0;
+      protein = (nutritions['protein_g'] as num? ?? 0.0).toDouble();
+      fat = (nutritions['fat_g'] as num? ?? 0.0).toDouble();
+      carbohydrates = (nutritions['carbohydrate_g'] as num? ?? 0.0).toDouble();
+    }
 
     final foodEntry = FoodEntry(
-      foodName: _predictionResult!['food_name'] as String? ?? 'Bilinmiyor',
-      calories: nutritions['calories'] as int? ?? 0,
-      protein: (nutritions['protein_g'] as num? ?? 0.0).toDouble(),
-      fat: (nutritions['fat_g'] as num? ?? 0.0).toDouble(),
-      carbohydrates: (nutritions['carbohydrate_g'] as num? ?? 0.0).toDouble(),
+      foodName: foodName,
+      calories: calories,
+      protein: protein,
+      fat: fat,
+      carbohydrates: carbohydrates,
       timestamp: DateTime.now(),
       imageUrl: _imageFile?.path ?? '',
     );
 
     trackingService.addFoodEntry(foodEntry);
 
-    // Başarı mesajı göster
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${foodEntry.foodName} günlük takibinize eklendi!'),
@@ -136,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- Arayüz Bileşenleri (UI Widgets) ---
+  // --- Arayüz Bileşenleri (Bu kısımda tasarım değişikliği yok) ---
 
   @override
   Widget build(BuildContext context) {
@@ -145,10 +179,16 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Yemek Kalori Tespiti'),
         backgroundColor: const Color(0xFF033F40),
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
-          // Ana sayfaya dön butonu
           IconButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              // Ana menüye veya başka bir ekrana yönlendirme
+              // Örnek: Navigator.of(context).popUntil((route) => route.isFirst);
+            },
             icon: const Icon(Icons.home),
           ),
         ],
@@ -174,7 +214,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Seçilen resmi veya bir yer tutucu ikonu gösteren widget.
   Widget _buildImagePreview() {
     return AspectRatio(
       aspectRatio: 1.0,
@@ -221,7 +260,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Galeri ve Kamera butonlarını içeren widget.
   Widget _buildActionButtons() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -260,7 +298,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Yükleme animasyonunu, hata mesajını veya tahmin sonucunu gösteren widget.
   Widget _buildResultDisplay() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -289,7 +326,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Theme.of(context).colorScheme.error,
                   fontWeight: FontWeight.w600,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -299,9 +335,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_predictionResult != null) {
       return Column(
         children: [
+          // ⭐ Sonuç kartı artık güncellenmiş ve akıllı mantık içeriyor
           _PredictionResultCard(result: _predictionResult!),
           const SizedBox(height: 16),
-          // Takibe ekle butonu
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -321,13 +357,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       );
     }
-    return const SizedBox(height: 50);
+    return const SizedBox(height: 50); // Boş durum için yer tutucu
   }
 }
 
-// --- ⭐ GÜNCELLENDİ: Sonuç Kartı Widget'ı ---
-// Bu widget, yeni JSON formatını ayrıştırmak ve göstermek için tamamen yeniden yazıldı.
-
+/// ⭐ GÜNCELLENDİ: Bu widget artık hem tekli hem de çoklu yemek yanıtlarını işleyebilir.
 class _PredictionResultCard extends StatelessWidget {
   final Map<String, dynamic> result;
 
@@ -338,20 +372,41 @@ class _PredictionResultCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    // 1. Yeni JSON formatından verileri güvenli bir şekilde al
-    final foodName = result['food_name'] as String? ?? 'Bilinmiyor';
+    // Görüntülenecek veriler için değişkenler
+    String foodNameToDisplay;
+    int calories;
+    double protein;
+    double fat;
+    double carbohydrates;
+
+    // Gelen yanıtta 'items' anahtarı var mı diye kontrol et (çoklu yemek durumu)
+    if (result.containsKey('items') && result.containsKey('total_nutrition')) {
+      // --- ÇOKLU YEMEK MANTIĞI ---
+      final items = List<Map<String, dynamic>>.from(result['items']);
+      foodNameToDisplay = items
+          .map((item) => item['food_name'] as String? ?? 'Öğe')
+          .join(', ');
+
+      final totalNutritions =
+          result['total_nutrition'] as Map<String, dynamic>? ?? {};
+      calories = totalNutritions['calories'] as int? ?? 0;
+      protein = (totalNutritions['protein'] as num? ?? 0.0).toDouble();
+      fat = (totalNutritions['fat'] as num? ?? 0.0).toDouble();
+      carbohydrates = (totalNutritions['carbohydrates'] as num? ?? 0.0)
+          .toDouble();
+    } else {
+      // --- TEKLİ YEMEK MANTIĞI (Eski mantık) ---
+      foodNameToDisplay = result['food_name'] as String? ?? 'Bilinmiyor';
+      final nutritions = result['nutritions'] as Map<String, dynamic>? ?? {};
+      calories = nutritions['calories'] as int? ?? 0;
+      protein = (nutritions['protein_g'] as num? ?? 0.0).toDouble();
+      fat = (nutritions['fat_g'] as num? ?? 0.0).toDouble();
+      carbohydrates = (nutritions['carbohydrate_g'] as num? ?? 0.0).toDouble();
+    }
+
+    // Ortak verileri (kaynak, güven) al
     final source = result['source'] as String? ?? 'Bilinmiyor';
     final confidence = result['confidence'] as String? ?? 'N/A';
-
-    // 2. İç içe geçmiş 'nutritions' nesnesini al
-    final nutritions = result['nutritions'] as Map<String, dynamic>? ?? {};
-    final calories = nutritions['calories'] as int? ?? 0;
-    final protein = nutritions['protein_g'] as num? ?? 0.0;
-    final fat = nutritions['fat_g'] as num? ?? 0.0;
-    final carbohydrates =
-        nutritions['carbohydrate_g'] as num? ?? 0.0; // <-- Yeni eklenen satır
-
-    // 3. Kaynağa göre ikon ve metin belirle
     final bool isGemini = source.toLowerCase().contains('gemini');
     final IconData sourceIcon = isGemini
         ? Icons.cloud_outlined
@@ -361,6 +416,7 @@ class _PredictionResultCard extends StatelessWidget {
         : 'Kaynak: Yerel Model';
     final String confidenceText = isGemini ? 'Doğrulama' : 'Güven: $confidence';
 
+    // Doldurulan bu verilerle arayüzü oluştur
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -369,19 +425,16 @@ class _PredictionResultCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
         child: Column(
           children: [
-            // YEMEK ADI
             Text(
-              foodName.toUpperCase(),
+              foodNameToDisplay.toUpperCase(),
               style: textTheme.headlineSmall?.copyWith(
-                color: Color(0xFF033F40), // Yemek adı için özel renk
+                color: const Color(0xFF033F40),
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
               ),
               textAlign: TextAlign.center,
             ),
             const Divider(height: 30, thickness: 1, indent: 20, endIndent: 20),
-
-            // BESİN DEĞERLERİ
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -402,7 +455,6 @@ class _PredictionResultCard extends StatelessWidget {
                   unit: 'g',
                 ),
                 _NutrientInfo(
-                  // <-- Yeni eklenen widget
                   value: carbohydrates.toStringAsFixed(1),
                   label: 'Karbonhidrat',
                   unit: 'g',
@@ -410,8 +462,6 @@ class _PredictionResultCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-
-            // ⭐ YENİ: Kaynak ve Güven Bilgisi için Chip
             Chip(
               avatar: Icon(sourceIcon, color: colorScheme.primary, size: 20),
               label: Text('$sourceText | $confidenceText'),
@@ -430,7 +480,7 @@ class _PredictionResultCard extends StatelessWidget {
   }
 }
 
-// --- Besin Değeri Gösterim Widget'ı (Değişiklik yok) ---
+/// Arayüzü daha temiz tutmak için kullanılan yardımcı widget. (Değişiklik yok)
 class _NutrientInfo extends StatelessWidget {
   final String value;
   final String label;
@@ -447,8 +497,6 @@ class _NutrientInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final defaultColor = Theme.of(context).textTheme.headlineSmall?.color;
-
     return Column(
       children: [
         Text(
@@ -464,7 +512,7 @@ class _NutrientInfo extends StatelessWidget {
           value,
           style: textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Color(0xFF033F40), // Özel renk
+            color: const Color(0xFF033F40),
           ),
         ),
         Text(

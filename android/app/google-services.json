@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "848014412192",
+    "project_id": "calorie-detective",
+    "storage_bucket": "calorie-detective.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:848014412192:android:efe8f709fef389150ebcc5",
+        "android_client_info": {
+          "package_name": "com.example.calori_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "848014412192-57pep7ie08d5p7kmb8c43h5mjqsinr9j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5JA05uKColIKOnlP7Ze-WRmfJH_qDv1g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "848014412192-57pep7ie08d5p7kmb8c43h5mjqsinr9j.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "848014412192-djkcekgo9shuku4u5n3u4oumcru49lju.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.caloriApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
