@@ -1,5 +1,6 @@
 // lib/screens/main_dashboard_screen.dart
 
+import 'package:calori_app/past_meals_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:calori_app/services/daily_tracking_service.dart';
@@ -284,7 +285,14 @@ class MainDashboardScreen extends StatelessWidget {
                   'Yemek Ekle',
                   Icons.add_a_photo,
                   const Color(0xFFEEA2AF),
-                  () => _navigateToCamera(context),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HomeScreen(),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -294,7 +302,14 @@ class MainDashboardScreen extends StatelessWidget {
                   'Geçmiş',
                   Icons.history,
                   const Color(0xFF35738C),
-                  () => _showHistory(context),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HistoryScreen(),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -458,20 +473,6 @@ class MainDashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  void _navigateToCamera(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
-  }
-
-  void _showHistory(BuildContext context) {
-    // TODO: Geçmiş sayfasını implement edin
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Geçmiş özelliği yakında eklenecek!')),
     );
   }
 }

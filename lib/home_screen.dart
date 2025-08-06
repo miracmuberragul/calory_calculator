@@ -1,8 +1,6 @@
 // lib/screens/home_screen.dart
-
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -25,10 +23,10 @@ class _HomeScreenState extends State<HomeScreen> {
   File? _imageFile;
   Map<String, dynamic>? _predictionResult;
   bool _isLoading = false;
+  bool _isSaving = false; // Firestore'a kaydetme durumu
   String? _errorMessage;
 
   // --- Mantıksal Fonksiyonlar ---
-
   /// Galeriden veya kameradan bir resim seçer ve tahmin sürecini başlatır.
   Future<void> _processImage(ImageSource source) async {
     setState(() {
@@ -103,75 +101,158 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// ⭐ GÜNCELLENDİ: Hem tekli hem çoklu yemek sonuçlarını takibe ekler.
-  void _addToTracking() {
+  /// ⭐ GÜNCELLENDİ: Firestore'a kaydetme işlemi eklendi
+  Future<void> _addToTracking() async {
     if (_predictionResult == null) return;
 
-    final trackingService = Provider.of<DailyTrackingService>(
-      context,
-      listen: false,
-    );
+    setState(() => _isSaving = true);
 
-    String foodName;
-    int calories;
-    double protein;
-    double fat;
-    double carbohydrates;
-
-    // Gelen yanıtta 'items' anahtarı var mı diye kontrol et (çoklu yemek durumu)
-    if (_predictionResult!.containsKey('items') &&
-        _predictionResult!.containsKey('total_nutrition')) {
-      // --- ÇOKLU YEMEK MANTIĞI ---
-      final items = List<Map<String, dynamic>>.from(
-        _predictionResult!['items'],
+    try {
+      final trackingService = Provider.of<DailyTrackingService>(
+        context,
+        listen: false,
       );
-      foodName = items
-          .map((item) => item['food_name'] as String? ?? 'Öğe')
-          .join(', ');
 
-      final totalNutritions =
-          _predictionResult!['total_nutrition'] as Map<String, dynamic>? ?? {};
-      calories = totalNutritions['calories'] as int? ?? 0;
-      // Backend'in çoklu yanıttaki anahtarlarına dikkat: 'protein', 'fat' vs.
-      protein = (totalNutritions['protein'] as num? ?? 0.0).toDouble();
-      fat = (totalNutritions['fat'] as num? ?? 0.0).toDouble();
-      carbohydrates = (totalNutritions['carbohydrates'] as num? ?? 0.0)
-          .toDouble();
-    } else {
-      // --- TEKLİ YEMEK MANTIĞI (Eski mantık) ---
-      foodName = _predictionResult!['food_name'] as String? ?? 'Bilinmiyor';
-      final nutritions =
-          _predictionResult!['nutritions'] as Map<String, dynamic>? ?? {};
-      calories = nutritions['calories'] as int? ?? 0;
-      protein = (nutritions['protein_g'] as num? ?? 0.0).toDouble();
-      fat = (nutritions['fat_g'] as num? ?? 0.0).toDouble();
-      carbohydrates = (nutritions['carbohydrate_g'] as num? ?? 0.0).toDouble();
+      String foodName;
+      int calories;
+      double protein;
+      double fat;
+      double carbohydrates;
+
+      // Gelen yanıtta 'items' anahtarı var mı diye kontrol et (çoklu yemek durumu)
+      if (_predictionResult!.containsKey('items') &&
+          _predictionResult!.containsKey('total_nutrition')) {
+        // --- ÇOKLU YEMEK MANTIĞI ---
+        final items = List<Map<String, dynamic>>.from(
+          _predictionResult!['items'],
+        );
+        foodName = items
+            .map((item) => item['food_name'] as String? ?? 'Öğe')
+            .join(', ');
+
+        final totalNutritions =
+            _predictionResult!['total_nutrition'] as Map<String, dynamic>? ??
+            {};
+        calories = totalNutritions['calories'] as int? ?? 0;
+        protein = (totalNutritions['protein'] as num? ?? 0.0).toDouble();
+        fat = (totalNutritions['fat'] as num? ?? 0.0).toDouble();
+        carbohydrates = (totalNutritions['carbohydrates'] as num? ?? 0.0)
+            .toDouble();
+      } else {
+        // --- TEKLİ YEMEK MANTIĞI (Eski mantık) ---
+        foodName = _predictionResult!['food_name'] as String? ?? 'Bilinmiyor';
+        final nutritions =
+            _predictionResult!['nutritions'] as Map<String, dynamic>? ?? {};
+        calories = nutritions['calories'] as int? ?? 0;
+        protein = (nutritions['protein_g'] as num? ?? 0.0).toDouble();
+        fat = (nutritions['fat_g'] as num? ?? 0.0).toDouble();
+        carbohydrates = (nutritions['carbohydrate_g'] as num? ?? 0.0)
+            .toDouble();
+      }
+
+      final foodEntry = FoodEntry(
+        foodName: foodName,
+        calories: calories,
+        protein: protein,
+        fat: fat,
+        carbohydrates: carbohydrates,
+        timestamp: DateTime.now(),
+        imageUrl: _imageFile?.path ?? '',
+      );
+
+      // Firestore'a kaydet
+      final success = await trackingService.addFoodEntry(foodEntry);
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${foodEntry.foodName} başarıyla kaydedildi!',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF4CAF50),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+          // Başarılı kaydetme sonrası formu temizle
+          setState(() {
+            _imageFile = null;
+            _predictionResult = null;
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Kaydetme işlemi başarısız oldu. Tekrar deneyin.',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.warning_outlined, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Beklenmeyen hata: $e',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
-
-    final foodEntry = FoodEntry(
-      foodName: foodName,
-      calories: calories,
-      protein: protein,
-      fat: fat,
-      carbohydrates: carbohydrates,
-      timestamp: DateTime.now(),
-      imageUrl: _imageFile?.path ?? '',
-    );
-
-    trackingService.addFoodEntry(foodEntry);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${foodEntry.foodName} günlük takibinize eklendi!'),
-        backgroundColor: const Color(0xFF4CAF50),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 
-  // --- Arayüz Bileşenleri (Bu kısımda tasarım değişikliği yok) ---
-
+  // --- Arayüz Bileşenleri ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -243,15 +324,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActionButtons() {
+    final bool isProcessing = _isLoading || _isSaving;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ElevatedButton.icon(
-          onPressed: _isLoading
+          onPressed: isProcessing
               ? null
               : () => _processImage(ImageSource.camera),
-          icon: const Icon(Icons.camera_alt_outlined),
-          label: const Text('Fotoğraf Çek'),
+          icon: _isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.camera_alt_outlined),
+          label: Text(_isLoading ? 'İşleniyor...' : 'Fotoğraf Çek'),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFEEA2AF),
             foregroundColor: Colors.white,
@@ -264,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: _isLoading
+          onPressed: isProcessing
               ? null
               : () => _processImage(ImageSource.gallery),
           icon: const Icon(Icons.photo_library_outlined),
@@ -282,8 +374,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildResultDisplay() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Column(
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(
+            'Yemek analiz ediliyor...',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+          ),
+        ],
+      );
     }
+
     if (_errorMessage != null) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -314,18 +416,29 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+
     if (_predictionResult != null) {
       return Column(
         children: [
-          // ⭐ Sonuç kartı artık güncellenmiş ve akıllı mantık içeriyor
           _PredictionResultCard(result: _predictionResult!),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _addToTracking,
-              icon: const Icon(Icons.add_circle_outline),
-              label: const Text('Günlük Takibe Ekle'),
+              onPressed: _isSaving ? null : _addToTracking,
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.cloud_upload_outlined),
+              label: Text(
+                _isSaving ? 'Kaydediliyor...' : 'Firestore\'a Kaydet',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4CAF50),
                 foregroundColor: Colors.white,
@@ -339,11 +452,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       );
     }
-    return const SizedBox(height: 50); // Boş durum için yer tutucu
+
+    return const SizedBox(height: 50);
   }
 }
 
-/// ⭐ GÜNCELLENDİ: Bu widget artık hem tekli hem de çoklu yemek yanıtlarını işleyebilir.
+/// Tahmin sonuçlarını gösteren kart widget'ı
 class _PredictionResultCard extends StatelessWidget {
   final Map<String, dynamic> result;
 
@@ -398,7 +512,6 @@ class _PredictionResultCard extends StatelessWidget {
         : 'Kaynak: Yerel Model';
     final String confidenceText = isGemini ? 'Doğrulama' : 'Güven: $confidence';
 
-    // Doldurulan bu verilerle arayüzü oluştur
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -462,7 +575,7 @@ class _PredictionResultCard extends StatelessWidget {
   }
 }
 
-/// Arayüzü daha temiz tutmak için kullanılan yardımcı widget. (Değişiklik yok)
+/// Besin değeri bilgilerini gösteren widget
 class _NutrientInfo extends StatelessWidget {
   final String value;
   final String label;
