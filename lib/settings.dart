@@ -1,6 +1,7 @@
 // lib/screens/settings_screen.dart
 
 import 'package:calori_app/abaout_screen.dart';
+import 'package:calori_app/profil_setup_screen.dart';
 import 'package:calori_app/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -63,7 +64,7 @@ class SettingsScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
+                    builder: (context) => const ProfileSetupScreen(),
                   ),
                 );
               },

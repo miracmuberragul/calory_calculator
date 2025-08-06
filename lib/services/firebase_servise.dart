@@ -1,4 +1,6 @@
 // lib/services/firestore_service.dart
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calori_app/services/daily_tracking_service.dart';
@@ -274,6 +276,9 @@ class FirestoreService {
   static Future<bool> createOrUpdateUserProfile({
     required String name,
     required String email,
+    required String height,
+    required String weight,
+    required String targetWeight,
     int? dailyCalorieGoal,
     double? dailyProteinGoal,
     double? dailyFatGoal,
@@ -288,6 +293,9 @@ class FirestoreService {
       await _firestore.collection('users').doc(_userId).set({
         'name': name,
         'email': email,
+        'height': height,
+        'weight': weight,
+        'targetWeight': targetWeight,
         'dailyCalorieGoal': dailyCalorieGoal ?? 2000,
         'dailyProteinGoal': dailyProteinGoal ?? 150.0,
         'dailyFatGoal': dailyFatGoal ?? 65.0,
@@ -321,6 +329,29 @@ class FirestoreService {
     } catch (e) {
       print('Kullanıcı profili getirme hatası: $e');
       return null;
+    }
+  }
+
+  Future<void> updateUserProfileData({
+    required String uid,
+    String? email, // email'i de eklemek iyi bir pratik
+    required double height,
+    required double weight,
+    required double targetWeight,
+  }) async {
+    try {
+      // .set() metodu, doküman yoksa oluşturur, varsa SetOptions(merge: true)
+      // sayesinde sadece belirtilen alanları günceller.
+      await _firestore.collection('users').doc(uid).set({
+        'height_cm': height,
+        'current_weight_kg': weight,
+        'target_weight_kg': targetWeight,
+        if (email != null)
+          'email': email, // Eğer email gönderilmişse onu da ekle
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print("Profil güncelleme/kaydetme hatası: $e");
+      rethrow;
     }
   }
 }
