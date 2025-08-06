@@ -1,13 +1,62 @@
-// lib/screens/main_dashboard_screen.dart
-
+import 'package:calori_app/home_screen.dart';
 import 'package:calori_app/past_meals_screen.dart';
+import 'package:calori_app/services/daily_tracking_service.dart';
+import 'package:calori_app/services/firebase_servise.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:calori_app/services/daily_tracking_service.dart';
-import 'package:calori_app/home_screen.dart';
 
-class MainDashboardScreen extends StatelessWidget {
+class MainDashboardScreen extends StatefulWidget {
   const MainDashboardScreen({super.key});
+
+  @override
+  State<MainDashboardScreen> createState() => _MainDashboardScreenState();
+}
+
+class _MainDashboardScreenState extends State<MainDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Bu kod widget ağacı oluşturulduktan sonra çalışacak
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      try {
+        // Veri yükleme işlemini async olarak başlat
+        await Provider.of<DailyTrackingService>(
+          context,
+          listen: false,
+        ).loadTodayEntries();
+
+        print('Dashboard: Veriler başarıyla yüklendi');
+      } catch (e) {
+        print('Dashboard: Veri yükleme hatası: $e');
+        // Hata durumunda kullanıcıya bilgi verilebilir
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Veriler yüklenirken bir hata oluştu'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  Future<void> _refreshData() async {
+    if (!mounted) return;
+
+    try {
+      await Provider.of<DailyTrackingService>(
+        context,
+        listen: false,
+      ).loadTodayEntries();
+
+      print('Dashboard: Veriler yenilendi');
+    } catch (e) {
+      print('Dashboard: Veri yenileme hatası: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,35 +65,53 @@ class MainDashboardScreen extends StatelessWidget {
       body: SafeArea(
         child: Consumer<DailyTrackingService>(
           builder: (context, trackingService, child) {
-            final nutrition = trackingService.dailyNutrition;
+            // Debug için veri durumunu yazdır
+            print(
+              'Dashboard Build: isLoading=${trackingService.isLoading}, entries=${trackingService.todayEntries.length}',
+            );
 
-            return CustomScrollView(
-              slivers: [
-                // App Bar
-
-                // Ana İçerik
-                SliverPadding(
-                  padding: const EdgeInsets.all(16.0),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      // Günlük Özet Kartı
-                      _buildDailySummaryCard(nutrition),
-                      const SizedBox(height: 20),
-
-                      // Besin Değerleri Progress Cards
-                      _buildNutritionProgressCards(trackingService),
-                      const SizedBox(height: 20),
-
-                      // Hızlı Aksiyonlar
-                      _buildQuickActions(context),
-                      const SizedBox(height: 20),
-
-                      // Bugünkü Yemekler
-                      _buildTodayMealsSection(trackingService),
-                    ]),
-                  ),
+            // Yükleme durumu kontrolü
+            if (trackingService.isLoading &&
+                trackingService.todayEntries.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Veriler yükleniyor...',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ],
                 ),
-              ],
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: _refreshData,
+              child: CustomScrollView(
+                physics:
+                    const AlwaysScrollableScrollPhysics(), // Pull-to-refresh için gerekli
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16.0),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        _buildDailySummaryCard(trackingService.dailyNutrition),
+                        const SizedBox(height: 20),
+                        _buildNutritionProgressCards(trackingService),
+                        const SizedBox(height: 20),
+                        _buildQuickActions(context),
+                        const SizedBox(height: 20),
+                        _buildTodayMealsSection(trackingService),
+                        // Son öğeden sonra biraz boşluk bırak
+                        const SizedBox(height: 100),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -285,13 +352,37 @@ class MainDashboardScreen extends StatelessWidget {
                   'Yemek Ekle',
                   Icons.add_a_photo,
                   const Color(0xFFEEA2AF),
-                  () {
-                    Navigator.push(
+                  () async {
+                    print('Dashboard: Yemek Ekle ekranına gidiliyor...');
+
+                    final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const HomeScreen(),
                       ),
                     );
+
+                    print(
+                      'Dashboard: Yemek Ekle ekranından dönüldü. Result: $result',
+                    );
+
+                    if (!context.mounted) return;
+
+                    // Her durumda veriyi yenile (yemek eklense de eklenmese de)
+                    try {
+                      await Provider.of<DailyTrackingService>(
+                        context,
+                        listen: false,
+                      ).loadTodayEntries();
+
+                      print(
+                        'Dashboard: Yemek ekleme sonrası veriler yenilendi',
+                      );
+                    } catch (e) {
+                      print(
+                        'Dashboard: Yemek ekleme sonrası veri yenileme hatası: $e',
+                      );
+                    }
                   },
                 ),
               ),
@@ -391,13 +482,35 @@ class MainDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           if (meals.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'Henüz yemek eklenmedi\nİlk yemeğinizi ekleyin!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.restaurant_menu,
+                      size: 48,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Henüz yemek eklenmedi',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'İlk yemeğinizi eklemek için yukarıdaki "Yemek Ekle" butonunu kullanın',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             )
@@ -457,14 +570,59 @@ class MainDashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$timeStr • ${meal.calories} kcal',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  '$timeStr • ${meal.calories} kcal • P: ${meal.protein.toInt()}g F: ${meal.fat.toInt()}g C: ${meal.carbohydrates.toInt()}g',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
           ),
           IconButton(
-            onPressed: () => service.removeFoodEntry(index),
+            onPressed: () async {
+              // Silme onayı
+              final shouldDelete = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Yemeği Sil'),
+                  content: Text(
+                    '${meal.foodName} adlı yemeği silmek istediğinizden emin misiniz?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        //deleteFoodEntry
+                        Navigator.of(context).pop(false);
+                      },
+                      child: const Text('İptal'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(true);
+                        FirestoreService.deleteFoodEntry(meal.id);
+                      },
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Sil'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (shouldDelete == true) {
+                try {
+                  await service.removeFoodEntry(index);
+                  print('Dashboard: Yemek silindi: ${meal.foodName}');
+                } catch (e) {
+                  print('Dashboard: Yemek silme hatası: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Yemek silinirken bir hata oluştu'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
             icon: Icon(
               Icons.delete_outline,
               color: Colors.red.shade400,

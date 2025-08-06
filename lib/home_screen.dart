@@ -151,6 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final foodEntry = FoodEntry(
+        id: '', // Firestore ID otomatik olarak atanacak
         foodName: foodName,
         calories: calories,
         protein: protein,

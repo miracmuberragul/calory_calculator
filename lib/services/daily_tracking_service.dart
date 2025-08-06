@@ -3,6 +3,7 @@ import 'package:calori_app/services/firebase_servise.dart';
 import 'package:flutter/foundation.dart';
 
 class FoodEntry {
+  final String id; // Firestore'da benzersiz ID
   final String foodName;
   final int calories;
   final double protein;
@@ -12,6 +13,7 @@ class FoodEntry {
   final String imageUrl;
 
   FoodEntry({
+    required this.id, // ID Firestore'dan gelecek
     required this.foodName,
     required this.calories,
     required this.protein,
@@ -24,6 +26,7 @@ class FoodEntry {
   // JSON'dan FoodEntry oluştur
   factory FoodEntry.fromJson(Map<String, dynamic> json) {
     return FoodEntry(
+      id: json['id'] ?? '', // ID Firestore'dan gelecek
       foodName: json['foodName'] ?? 'Bilinmiyor',
       calories: json['calories'] ?? 0,
       protein: (json['protein'] ?? 0.0).toDouble(),
@@ -37,6 +40,7 @@ class FoodEntry {
   // FoodEntry'yi JSON'a çevir
   Map<String, dynamic> toJson() {
     return {
+      'id': id, // Firestore ID
       'foodName': foodName,
       'calories': calories,
       'protein': protein,

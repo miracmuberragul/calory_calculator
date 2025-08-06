@@ -1,6 +1,7 @@
 // lib/page_route.dart
 
 // Gerekli tüm ekranları import ediyoruz
+import 'package:calori_app/gemini_suggest.dart';
 import 'package:calori_app/main_dashboard_screen.dart'; // TAKİP EKRANI
 import 'package:calori_app/home_screen.dart'; // TESPİT EKRANI
 import 'package:calori_app/settings.dart'; // AYARLAR EKRANI
@@ -67,6 +68,18 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const GeminiChatScreen(),
+                    ),
+                  );
+                },
+                child: const Text('Gemini ile Sağlıklı Öneriler'),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),

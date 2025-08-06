@@ -5,6 +5,7 @@ import 'package:calori_app/firebase_options.dart';
 import 'package:calori_app/services/auth_service.dart'; // Oluşturduğumuz servis
 import 'package:calori_app/services/firebase_servise.dart';
 import 'package:calori_app/splash_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 // Oluşturduğumuz servis
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,10 @@ class MyApp extends StatelessWidget {
         Provider<AuthService>(create: (_) => AuthService()),
         // Bu servis, Firestore veritabanı işlemlerini yönetir
         Provider<FirestoreService>(create: (_) => FirestoreService()),
+        StreamProvider<User?>.value(
+          value: FirebaseAuth.instance.authStateChanges(),
+          initialData: null,
+        ),
       ],
       child: MaterialApp(
         title: 'Kalori Dedektifi',

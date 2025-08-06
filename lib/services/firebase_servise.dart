@@ -1,4 +1,7 @@
 // lib/services/firestore_service.dart
+
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calori_app/services/daily_tracking_service.dart';
@@ -59,9 +62,12 @@ class FirestoreService {
           .orderBy('timestamp', descending: false)
           .get();
 
+      log('Bugünkü yemek verileri alındı: ${querySnapshot.docs.length} kayıt');
+
       return querySnapshot.docs.map((doc) {
         final data = doc.data();
         return FoodEntry(
+          id: doc.id, // Firestore'dan gelen benzersiz ID
           foodName: data['foodName'] ?? 'Bilinmiyor',
           calories: data['calories'] ?? 0,
           protein: (data['protein'] ?? 0.0).toDouble(),
@@ -100,6 +106,7 @@ class FirestoreService {
       return querySnapshot.docs.map((doc) {
         final data = doc.data();
         return FoodEntry(
+          id: doc.id, // Firestore'dan gelen benzersiz ID
           foodName: data['foodName'] ?? 'Bilinmiyor',
           calories: data['calories'] ?? 0,
           protein: (data['protein'] ?? 0.0).toDouble(),
@@ -165,6 +172,7 @@ class FirestoreService {
       return querySnapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         return FoodEntry(
+          id: doc.id, // Firestore'dan gelen benzersiz ID
           foodName: data['foodName'] ?? 'Bilinmiyor',
           calories: data['calories'] ?? 0,
           protein: (data['protein'] ?? 0.0).toDouble(),
@@ -253,6 +261,7 @@ class FirestoreService {
           return snapshot.docs.map((doc) {
             final data = doc.data();
             return FoodEntry(
+              id: doc.id, // Firestore'dan gelen benzersiz ID
               foodName: data['foodName'] ?? 'Bilinmiyor',
               calories: data['calories'] ?? 0,
               protein: (data['protein'] ?? 0.0).toDouble(),
